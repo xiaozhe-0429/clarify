@@ -1,0 +1,380 @@
+# Clarify v1 种子规则库
+# 版本: semver, 每次修改递增
+version: "1.0.0"
+
+# 规则硬上限: 50 条
+# 模式:
+#   pass          — 无需澄清, 直接放行
+#   silent_resolve — 引擎自动消解, 不打断用户
+#   must_clarify  — 必须向用户提问
+#
+# depends_on: 级联消解 — 如果该 question_id 已被回答, 本条自动跳过
+
+rules:
+  # ═══════════════════════════════════════════════════════
+  # ops — 运维场景
+  # ═══════════════════════════════════════════════════════
+
+  - id: ops_deploy_target
+    domain: ops
+    scene: deploy
+    priority: 90
+    mode: must_clarify
+    question: "部署目标环境是哪个？"
+    reason: "部署操作不可逆, 必须确认目标环境"
+    options: ["production", "staging", "development"]
+
+  - id: ops_deploy_strategy
+    domain: ops
+    scene: deploy
+    priority: 85
+    mode: must_clarify
+    question: "采用什么部署策略？"
+    reason: "不同策略对服务可用性影响不同"
+    options: ["rolling", "blue-green", "canary", "recreate"]
+    depends_on: ops_deploy_target
+
+  - id: ops_deploy_version
+    domain: ops
+    scene: deploy
+    priority: 80
+    mode: must_clarify
+    question: "部署哪个版本/镜像标签？"
+    reason: "必须明确版本号以避免回滚困难"
+
+  - id: ops_deploy_confirm
+    domain: ops
+    scene: deploy
+    priority: 70
+    mode: must_clarify
+    question: "是否已备份当前运行数据？"
+    reason: "部署前备份是安全底线"
+
+  - id: ops_monitor_metric
+    domain: ops
+    scene: monitor
+    priority: 90
+    mode: must_clarify
+    question: "需要监控哪些指标？"
+    reason: "不同指标需要不同采集方式"
+    options: ["CPU", "内存", "磁盘IO", "网络流量", "应用QPS", "错误率"]
+
+  - id: ops_monitor_threshold
+    domain: ops
+    scene: monitor
+    priority: 85
+    mode: must_clarify
+    question: "告警阈值是多少？"
+    reason: "阈值决定告警灵敏度, 过高漏报过低误报"
+    depends_on: ops_monitor_metric
+
+  - id: ops_monitor_channel
+    domain: ops
+    scene: monitor
+    priority: 75
+    mode: silent_resolve
+    question: "告警通知渠道？"
+    reason: "默认使用企业微信, 可按需切换"
+    options: ["企业微信", "钉钉", "飞书", "邮件", "PagerDuty"]
+
+  - id: ops_alert_severity
+    domain: ops
+    scene: alert
+    priority: 95
+    mode: must_clarify
+    question: "告警严重级别？"
+    reason: "不同级别触发不同响应流程"
+    options: ["P0-紧急", "P1-严重", "P2-一般", "P3-提示"]
+
+  - id: ops_alert_owner
+    domain: ops
+    scene: alert
+    priority: 85
+    mode: must_clarify
+    question: "告警责任人/值班组？"
+    reason: "确保告警能到达正确的人"
+
+  - id: ops_alert_suppress
+    domain: ops
+    scene: alert
+    priority: 70
+    mode: silent_resolve
+    question: "是否需要告警抑制规则？"
+    reason: "维护窗口期间的告警应被抑制"
+    options: ["是, 设置抑制窗口", "否, 始终告警"]
+
+  - id: ops_scale_direction
+    domain: ops
+    scene: scale
+    priority: 90
+    mode: must_clarify
+    question: "扩容还是缩容？"
+    reason: "方向错误可能导致服务中断"
+    options: ["扩容 (scale out)", "缩容 (scale in)"]
+
+  - id: ops_scale_target
+    domain: ops
+    scene: scale
+    priority: 85
+    mode: must_clarify
+    question: "目标实例数？"
+    reason: "需要明确数量以评估资源"
+    depends_on: ops_scale_direction
+
+  - id: ops_scale_service
+    domain: ops
+    scene: scale
+    priority: 80
+    mode: must_clarify
+    question: "对哪个服务进行扩缩容？"
+    reason: "必须指定服务名避免误操作"
+
+  - id: ops_restart_scope
+    domain: ops
+    scene: restart
+    priority: 90
+    mode: must_clarify
+    question: "重启范围？"
+    reason: "全量重启影响所有用户"
+    options: ["单个实例", "批量 (指定比例)", "全量"]
+
+  - id: ops_restart_graceful
+    domain: ops
+    scene: restart
+    priority: 80
+    mode: silent_resolve
+    question: "是否优雅重启？"
+    reason: "优雅重启保证请求不丢失"
+    options: ["是 (drain + 等待)", "否 (强制终止)"]
+
+  # ═══════════════════════════════════════════════════════
+  # dev — 开发场景
+  # ═══════════════════════════════════════════════════════
+
+  - id: dev_api_method
+    domain: dev
+    scene: api_design
+    priority: 95
+    mode: must_clarify
+    question: "使用哪个 HTTP 方法？"
+    reason: "方法语义影响幂等性和缓存行为"
+    options: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+
+  - id: dev_api_auth
+    domain: dev
+    scene: api_design
+    priority: 90
+    mode: must_clarify
+    question: "接口认证方式？"
+    reason: "安全设计必须在接口定义阶段确定"
+    options: ["JWT", "API Key", "OAuth2", "无认证(内部)"]
+
+  - id: dev_api_versioning
+    domain: dev
+    scene: api_design
+    priority: 80
+    mode: silent_resolve
+    question: "API 版本策略？"
+    reason: "默认使用 URL 路径版本 /v1/"
+    options: ["URL 路径", "Header", "Query 参数"]
+
+  - id: dev_api_pagination
+    domain: dev
+    scene: api_design
+    priority: 75
+    mode: silent_resolve
+    question: "是否需要分页？"
+    reason: "列表接口默认需要分页"
+    options: ["是 (cursor)", "是 (offset)", "否"]
+
+  - id: dev_api_rate_limit
+    domain: dev
+    scene: api_design
+    priority: 70
+    mode: silent_resolve
+    question: "是否需要限流？"
+    reason: "公开 API 建议设置限流"
+    options: ["是", "否"]
+
+  - id: dev_model_relation
+    domain: dev
+    scene: data_model
+    priority: 90
+    mode: must_clarify
+    question: "实体之间的关系类型？"
+    reason: "关系类型决定数据库 schema 设计"
+    options: ["1:1", "1:N", "N:M"]
+
+  - id: dev_model_index
+    domain: dev
+    scene: data_model
+    priority: 85
+    mode: must_clarify
+    question: "哪些字段需要建索引？"
+    reason: "索引直接影响查询性能"
+    depends_on: dev_model_relation
+
+  - id: dev_model_soft_delete
+    domain: dev
+    scene: data_model
+    priority: 70
+    mode: silent_resolve
+    question: "是否使用软删除？"
+    reason: "软删除便于数据恢复但增加查询复杂度"
+    options: ["是", "否"]
+
+  - id: dev_error_format
+    domain: dev
+    scene: error_handling
+    priority: 90
+    mode: must_clarify
+    question: "错误响应格式？"
+    reason: "统一错误格式是 API 规范的基础"
+    options: ["RFC 7807", "自定义 JSON", "gRPC Status"]
+
+  - id: dev_error_retry
+    domain: dev
+    scene: error_handling
+    priority: 80
+    mode: silent_resolve
+    question: "哪些错误码需要客户端重试？"
+    reason: "明确重试策略避免雪崩"
+    options: ["仅 5xx", "429 + 5xx", "自定义列表"]
+
+  - id: dev_error_log
+    domain: dev
+    scene: error_handling
+    priority: 75
+    mode: silent_resolve
+    question: "错误日志级别？"
+    reason: "4xx 通常 warn, 5xx 必须 error"
+
+  - id: dev_db_choice
+    domain: dev
+    scene: tech_stack
+    priority: 90
+    mode: must_clarify
+    question: "选择哪种数据库？"
+    reason: "数据库选型影响整体架构"
+    options: ["PostgreSQL", "MySQL", "MongoDB", "Redis"]
+
+  - id: dev_cache_strategy
+    domain: dev
+    scene: tech_stack
+    priority: 80
+    mode: silent_resolve
+    question: "缓存策略？"
+    reason: "缓存对性能影响显著"
+    options: ["Cache-Aside", "Read-Through", "Write-Through", "Write-Behind"]
+
+  # ═══════════════════════════════════════════════════════
+  # general — 通用场景
+  # ═══════════════════════════════════════════════════════
+
+  - id: gen_naming_convention
+    domain: general
+    scene: naming
+    priority: 90
+    mode: must_clarify
+    question: "命名风格？"
+    reason: "统一命名是代码可读性的基础"
+    options: ["snake_case", "camelCase", "PascalCase", "kebab-case"]
+
+  - id: gen_naming_lang
+    domain: general
+    scene: naming
+    priority: 85
+    mode: silent_resolve
+    question: "目标编程语言？"
+    reason: "不同语言有不同的命名惯例"
+    options: ["Python", "Go", "TypeScript", "Java", "Rust"]
+
+  - id: gen_naming_abbrev
+    domain: general
+    scene: naming
+    priority: 70
+    mode: silent_resolve
+    question: "是否允许缩写？"
+    reason: "缩写影响可读性, 需要团队共识"
+    options: ["禁止缩写", "仅通用缩写(如 id, url)", "允许"]
+
+  - id: gen_format_type
+    domain: general
+    scene: format
+    priority: 90
+    mode: must_clarify
+    question: "数据格式？"
+    reason: "格式决定序列化和互操作性"
+    options: ["JSON", "YAML", "TOML", "XML", "Protobuf"]
+
+  - id: gen_format_indent
+    domain: general
+    scene: format
+    priority: 75
+    mode: silent_resolve
+    question: "缩进宽度？"
+    reason: "统一缩进风格"
+    options: ["2 空格", "4 空格", "Tab"]
+
+  - id: gen_doc_audience
+    domain: general
+    scene: documentation
+    priority: 90
+    mode: must_clarify
+    question: "文档目标读者？"
+    reason: "不同读者需要不同深度和术语"
+    options: ["开发者", "运维", "产品经理", "最终用户"]
+
+  - id: gen_doc_lang
+    domain: general
+    scene: documentation
+    priority: 85
+    mode: must_clarify
+    question: "文档语言？"
+    reason: "国际化项目需要明确文档语言"
+    options: ["中文", "English", "双语"]
+
+  - id: gen_doc_format
+    domain: general
+    scene: documentation
+    priority: 75
+    mode: silent_resolve
+    question: "文档格式？"
+    reason: "默认 Markdown, 可按需选择"
+    options: ["Markdown", "reStructuredText", "AsciiDoc", "Wiki"]
+
+  - id: gen_license_type
+    domain: general
+    scene: project_setup
+    priority: 80
+    mode: must_clarify
+    question: "开源许可证？"
+    reason: "许可证影响代码使用和分发方式"
+    options: ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "专有"]
+
+  - id: gen_ci_provider
+    domain: general
+    scene: project_setup
+    priority: 75
+    mode: silent_resolve
+    question: "CI/CD 平台？"
+    reason: "默认 GitHub Actions"
+    options: ["GitHub Actions", "GitLab CI", "Jenkins", "CircleCI"]
+
+  - id: gen_repo_visibility
+    domain: general
+    scene: project_setup
+    priority: 90
+    mode: must_clarify
+    question: "仓库可见性？"
+    reason: "影响安全策略和协作方式"
+    options: ["公开", "私有"]
+
+  - id: gen_branch_strategy
+    domain: general
+    scene: project_setup
+    priority: 80
+    mode: silent_resolve
+    question: "分支策略？"
+    reason: "影响团队协作流程"
+    options: ["GitHub Flow", "Git Flow", "Trunk-Based"]

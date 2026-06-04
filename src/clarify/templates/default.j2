@@ -1,0 +1,10 @@
+{# 默认 prompt 模板 — 用于编译测试 #}
+你是一个 {{ role }} 助手。
+
+用户问题: {{ question }}
+
+{% if context %}
+背景信息: {{ context }}
+{% endif %}
+
+请用{{ language }}回答, 风格: {{ style|default("专业") }}。

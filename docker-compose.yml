@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  clarify:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLARIFY_LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  # 可选: Prometheus (注释掉默认不启动)
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
