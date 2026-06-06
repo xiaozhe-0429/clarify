@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from jinja2 import Environment, FileSystemLoader, Template, meta
+from jinja2 import Environment, FileSystemLoader, Template, Undefined, meta
 
 
 class TemplateCompiler:
@@ -19,11 +19,11 @@ class TemplateCompiler:
 
     def __init__(self, templates_dir: Optional[Path] = None) -> None:
         if templates_dir is None:
-            templates_dir = Path(__file__).resolve().parent.parent / "templates"
+            templates_dir = Path(__file__).resolve().parent / "templates"
         self._env = Environment(
             loader=FileSystemLoader(str(templates_dir)),
             autoescape=False,
-            undefined=lambda: "",  # fallback: 缺失变量 → 空字符串
+            undefined=Undefined,
         )
 
     def list_templates(self) -> list[str]:

@@ -81,10 +81,10 @@ class RuleEngine:
     # ── 匹配 ──────────────────────────────────────────
 
     def match(self, ctx: ClarifyContext) -> list[Rule]:
-        """返回匹配 ctx.domain + ctx.scene 的规则 (已排序)."""
+        """返回匹配 ctx.domain 的规则 (已排序)."""
         candidates = [
             r for r in self._rules
-            if r.domain == ctx.domain and r.scene == ctx.scene
+            if r.domain == ctx.domain.value
         ]
         return candidates
 

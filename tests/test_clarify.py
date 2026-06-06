@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from clarify.models import ClarifyContext, ClarifyRequest, ClarifyResponse
+from clarify.models import ClarifyContext, ClarifyRequest, ClarifyResponse, Domain
 from clarify.rules.engine import RuleEngine
 from clarify.compile import TemplateCompiler
 
@@ -32,22 +32,22 @@ def test_engine_loads_seed_rules(engine: RuleEngine) -> None:
 # ── Test 2: domain + scene 匹配 ───────────────────────
 
 def test_engine_matches_domain_scene(engine: RuleEngine) -> None:
-    """验证 domain=ops, scene=deploy 命中至少 1 条规则."""
-    ctx = ClarifyContext(domain="ops", scene="deploy", question="部署到生产环境")
+    """验证 domain=ops 命中至少 1 条规则."""
+    ctx = ClarifyContext(domain=Domain.OPS)
     result = engine.detect(ctx)
     assert isinstance(result, ClarifyResponse)
     assert result.mode in ("pass", "silent_resolve", "must_clarify")
     assert len(result.questions) > 0
 
 
-# ── Test 3: pass 模式 (无匹配规则时降级放行) ──────────
+# ── Test 3: 规则过滤 (空列表不崩溃) ──────────
 
-def test_unknown_scene_passes(engine: RuleEngine) -> None:
-    """不存在的 scene 应返回 pass 模式空问题列表."""
-    ctx = ClarifyContext(domain="ops", scene="nonexistent", question="test")
+def test_empty_context_no_crash(engine: RuleEngine) -> None:
+    """无 previous_answers 时引擎不应崩溃."""
+    ctx = ClarifyContext(domain=Domain.OPS)
     result = engine.detect(ctx)
-    assert result.mode == "pass"
-    assert len(result.questions) == 0
+    assert isinstance(result, ClarifyResponse)
+    assert result.mode in ("pass", "silent_resolve", "must_clarify")
 
 
 # ── Test 4: 模板编译 ──────────────────────────────────
@@ -69,8 +69,9 @@ def test_template_compile(compiler: TemplateCompiler) -> None:
 
 def test_cascade_resolve(engine: RuleEngine) -> None:
     """回答 q1 后, 依赖 q1 的 q2 应被消解."""
+    from clarify.models import Domain
     ctx1 = ClarifyContext(
-        domain="ops", scene="deploy", question="部署"
+        domain=Domain.OPS,
     )
     r1 = engine.detect(ctx1)
     assert len(r1.questions) > 0
@@ -78,9 +79,7 @@ def test_cascade_resolve(engine: RuleEngine) -> None:
 
     # 第二次请求: 带上 q1 的答案
     ctx2 = ClarifyContext(
-        domain="ops",
-        scene="deploy",
-        question="继续部署",
+        domain=Domain.OPS,
         previous_answers=[{q1_id: "production"}],
     )
     r2 = engine.detect(ctx2)

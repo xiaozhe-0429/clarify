@@ -141,7 +141,7 @@ async def compile_template(req: CompileRequest) -> CompileResponse | JSONRespons
 
     compiler = get_compiler()
     try:
-        rendered, missing = compiler.render(req.template_name, req.variables)
+        rendered, missing = compiler.render(req.template_name, req.answers or {})
     except Exception as exc:
         return _error_response(
             ErrorCode.TEMPLATE_ERROR,
