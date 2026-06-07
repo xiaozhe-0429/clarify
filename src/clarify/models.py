@@ -15,11 +15,16 @@ class ErrorCode(str, Enum):
     """6 种标准错误码 — 与 PRD 严格对齐."""
 
     RULE_MISS = "RULE_MISS"                    # 200 — 规则库无匹配, 降级放行
+    DOMAIN_MISSING = "DOMAIN_MISSING"           # 422 — domain 字段缺失
+    DOMAIN_INVALID = "DOMAIN_INVALID"           # 422 — domain 值不在允许列表
+    SCENE_MISSING = "SCENE_MISSING"             # 422 — scene 字段缺失
     CONTEXT_MISSING = "CONTEXT_MISSING"         # 422 — context 必填字段缺失
     CONTEXT_INVALID = "CONTEXT_INVALID"         # 422 — context 字段值非法
+    TEMPLATE_ERROR = "TEMPLATE_ERROR"           # 500 — 模板编译失败
     TEMPLATE_BIND_ERROR = "TEMPLATE_BIND_ERROR" # 500 — 必选变量缺失
     RULE_EXEC_ERROR = "RULE_EXEC_ERROR"         # 500 — 规则执行异常
     COMPILE_NO_ANSWERS = "COMPILE_NO_ANSWERS"   # 422 — compile 缺少 answers
+    INTERNAL_ERROR = "INTERNAL_ERROR"           # 500 — 内部错误
 
 
 # ── Context (PRD § 数据流转路径) ──────────────────────
@@ -40,19 +45,23 @@ class ClarifyContext(BaseModel):
     - recent_prompts: 最近 N 条用户指令 (用于指代消解)
     - available_targets: 可操作目标列表 (如 K8s 集群、数据库实例)
     - domain: 业务域 (ops / dev / general)
+    - scene: 子场景 (deploy / monitor / api_design 等)
     - locale: 语言区域 (zh-CN / en-US)
     """
 
-    recent_prompts: list[str] = Field(
-        default_factory=list,
+    recent_prompts: list[str] | None = Field(
+        default=None,
         description="最近 N 条用户指令, 用于指代消解",
     )
-    available_targets: list[str] = Field(
-        default_factory=list,
+    available_targets: list[str] | None = Field(
+        default=None,
         description="可操作目标列表",
     )
     domain: Domain = Field(
         ..., description="业务域: ops / dev / general"
+    )
+    scene: str = Field(
+        default="", min_length=0, max_length=64, description="子场景"
     )
     locale: str = Field(
         default="zh-CN", min_length=2, max_length=10, description="语言区域"
@@ -65,8 +74,10 @@ class ClarifyContext(BaseModel):
     @model_validator(mode="after")
     def _truncate_fields(self) -> "ClarifyContext":
         """截断字段至硬上限."""
-        self.recent_prompts = self.recent_prompts[-5:]
-        self.available_targets = self.available_targets[:20]
+        if self.recent_prompts is not None:
+            self.recent_prompts = self.recent_prompts[-5:]
+        if self.available_targets is not None:
+            self.available_targets = self.available_targets[:20]
         return self
 
 
