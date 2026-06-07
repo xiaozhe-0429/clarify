@@ -31,6 +31,33 @@ errors_total = Counter(
     ["error_code"],
 )
 
+# ── M2-1: 新增 Prometheus 指标 ────────────────────────
+
+clarify_latency_seconds = Histogram(
+    "clarify_latency_seconds",
+    "Request latency in seconds",
+    ["domain", "scene"],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+rules_matched_total = Counter(
+    "rules_matched_total",
+    "Total rules matched",
+    ["rule_name", "domain", "matched"],
+)
+
+compile_template_success_total = Counter(
+    "compile_template_success_total",
+    "Template compilation success/failure",
+    ["template_name", "status"],
+)
+
+compile_template_missing_vars_total = Counter(
+    "compile_template_missing_vars_total",
+    "Missing variables per compilation",
+    ["template_name", "count_bucket"],
+)
+
 
 def get_metrics() -> bytes:
     """返回 Prometheus 文本格式指标."""
