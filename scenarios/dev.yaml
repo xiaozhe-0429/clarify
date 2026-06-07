@@ -1,0 +1,24 @@
+version: "1.0.0"
+domain: dev
+rules:
+  - id: dev-sc-001
+    pattern: "分支"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "操作哪个分支？"
+    reason: "未指定目标分支"
+    options: ["main", "develop", "feature/*"]
+  - id: dev-sc-002
+    pattern: "文件"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "修改哪个文件？"
+    reason: "未指定目标文件"
+    options: []
+  - id: dev-sc-003
+    pattern: "语言"
+    ambiguity_type: format
+    mode: must_clarify
+    question: "使用什么语言或框架？"
+    reason: "未指定技术栈"
+    options: ["Python", "Go", "Rust", "TypeScript"]

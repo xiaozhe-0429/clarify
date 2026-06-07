@@ -1,0 +1,24 @@
+version: "1.0.0"
+domain: general
+rules:
+  - id: gen-sc-001
+    pattern: "配置"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "配置哪个部分？"
+    reason: "配置是多维度概念"
+    options: ["数据库", "网络", "安全", "性能"]
+  - id: gen-sc-002
+    pattern: "权限"
+    ambiguity_type: precondition
+    mode: must_clarify
+    question: "需要什么权限级别？"
+    reason: "权限模型需明确角色和级别"
+    options: ["read", "write", "admin"]
+  - id: gen-sc-003
+    pattern: "版本"
+    ambiguity_type: reference
+    mode: must_clarify
+    question: "哪个版本号？"
+    reason: "版本号格式不统一会导致混乱"
+    options: []

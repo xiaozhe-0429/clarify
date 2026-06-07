@@ -1,0 +1,24 @@
+version: "1.0.0"
+domain: ops
+rules:
+  - id: ops-sc-001
+    pattern: "重启"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "需要重启哪个服务？"
+    reason: "未指定目标服务名称"
+    options: ["api", "database", "cache", "worker"]
+  - id: ops-sc-002
+    pattern: "部署"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "部署到哪个环境？"
+    reason: "未指定部署目标环境"
+    options: ["staging", "production", "testing"]
+  - id: ops-sc-003
+    pattern: "监控"
+    ambiguity_type: target
+    mode: must_clarify
+    question: "监控哪个指标？"
+    reason: "监控是多维度概念，需明确方向"
+    options: ["CPU", "内存", "磁盘", "网络", "错误率"]

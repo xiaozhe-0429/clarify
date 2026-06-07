@@ -22,8 +22,8 @@ class Rule:
 
     def __init__(self, raw: dict) -> None:
         self.id: str = raw["id"]
-        self.domain: str = raw["domain"]
-        self.scene: str = raw["scene"]
+        self.domain: str = raw.get("domain", "general")
+        self.scene: str = raw.get("scene", "general")
         self.priority: int = raw.get("priority", 50)
         self.mode: str = raw.get("mode", "must_clarify")
         self.question_template: str = raw["question"]
@@ -60,13 +60,19 @@ class RuleEngine:
 
         self._version = data.get("version", "0.0.0")
         raw_rules = data.get("rules", [])
+        file_domain = data.get("domain", "")
 
         if len(raw_rules) > self.MAX_RULES:
             raise ValueError(
                 f"规则数量 {len(raw_rules)} 超过硬上限 {self.MAX_RULES}"
             )
 
-        self._rules = [Rule(r) for r in raw_rules]
+        self._rules = []
+        for r in raw_rules:
+            # 场景 YAML: 文件级 domain 注入到没 domain 字段的规则
+            if file_domain and "domain" not in r:
+                r["domain"] = file_domain
+            self._rules.append(Rule(r))
         # 按优先级降序
         self._rules.sort(key=lambda r: r.priority, reverse=True)
 
@@ -90,39 +96,88 @@ class RuleEngine:
 
     # ── 级联消解 ──────────────────────────────────────
 
+    MAX_CASCADE_ROUNDS = 2
+
     def _resolve_cascade(
-        self, rules: list[Rule], previous_answers: Optional[list[dict[str, str]]]
+        self,
+        rules: list[Rule],
+        previous_answers: Optional[list[dict[str, str]]],
+        first_round_questions: Optional[set[str]] = None,
     ) -> list[Rule]:
         """根据 previous_answers 过滤已消解的规则.
 
-        规则: 如果某规则的 depends_on 指向的 question_id 已在
-        previous_answers 中出现, 则该规则被消解 (移除).
+        级联消解策略 (最多 MAX_CASCADE_ROUNDS 轮):
+        - 第 1 轮: 正常匹配, 返回所有 must_clarify 问题.
+        - 第 2 轮: 基于第 1 轮答案, 匹配 depends_on 指向已答问题的规则,
+          且排除第 1 轮已问过的问题 (去重).
+        - 不再支持第 3 轮.
+
+        Args:
+            rules: 候选规则列表 (第 1 轮返回的所有规则).
+            previous_answers: [{question_id: answer}, ...] 来自前一轮.
+            first_round_questions: 第 1 轮已生成的问题 ID 集合 (用于去重).
+
+        Returns:
+            过滤后的规则列表.
         """
         if not previous_answers:
             return rules
 
-        answered_ids = set()
+        # 计算级联轮次：每提交一次答案算一轮
+        cascade_round = len(previous_answers)
+        if cascade_round >= self.MAX_CASCADE_ROUNDS:
+            return []  # 超过 2 轮, 不再追问
+
+        answered_ids: set[str] = set()
         for entry in previous_answers:
             answered_ids.update(entry.keys())
 
+        # 第一轮问题 ID (用于去重)
+        first_round_ids = first_round_questions if first_round_questions else set()
+
         remaining: list[Rule] = []
         for rule in rules:
-            if rule.depends_on and rule.depends_on in answered_ids:
-                continue  # 级联消解
+            # 排除第 1 轮已问过的问题 (去重)
+            if rule.id in first_round_ids:
+                continue
+            # 该规则自身已被回答 → 跳过
+            if rule.id in answered_ids:
+                continue
+            # 第 2 轮: 只返回依赖已回答问题的规则 (新规则),
+            # 或者没有 depends_on 约束的规则
+            # 如果没有 depends_on → 新规则, 加入
+            # 如果 depends_on 且已回答 → 新规则, 加入
+            # 如果 depends_on 但未回答 → 跳过
+            if rule.depends_on and rule.depends_on not in answered_ids:
+                continue
             remaining.append(rule)
         return remaining
 
     # ── 歧义检测 ──────────────────────────────────────
 
     def detect(self, ctx: ClarifyContext) -> ClarifyResponse:
-        """执行歧义检测, 返回 ClarifyResponse."""
+        """执行歧义检测, 返回 ClarifyResponse.
+
+        支持级联消解: 当 ctx.previous_answers 非空时,
+        基于第 1 轮答案自动匹配第 2 轮相关歧义 (去重).
+        """
         import uuid
         import time
 
         t0 = time.perf_counter()
 
         rules = self.match(ctx)
-        rules = self._resolve_cascade(rules, ctx.previous_answers)
+        is_cascade = bool(ctx.previous_answers)
+
+        if not is_cascade:
+            # 第一轮: 只返回 depends_on 为 None 的独立规则
+            rules = [r for r in rules if r.depends_on is None]
+
+        first_round_ids: Optional[set[str]] = None
+        if is_cascade:
+            # 第一轮问题的 ID 集合 = 所有同 domain 独立规则 (depends_on=None)
+            first_round_ids = {r.id for r in rules if r.depends_on is None}
+        rules = self._resolve_cascade(rules, ctx.previous_answers, first_round_ids)
 
         questions: list[ClarifyQuestion] = []
         mode = "pass"

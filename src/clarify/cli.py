@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 import click
 import uvicorn
 
 from clarify.rules.engine import RuleEngine
 from clarify.compile import TemplateCompiler
-from clarify.models import ClarifyContext, ClarifyRequest
+from clarify.models import ClarifyContext, ClarifyRequest, Domain
 
 
 @click.group()
@@ -20,17 +21,90 @@ def cli() -> None:
 
 @cli.command()
 @click.option("--domain", required=True, help="业务域: ops / dev / general")
-@click.option("--scene", required=True, help="场景")
+@click.option("--scene", default="", help="场景 (seed 规则库必填, 场景文件可选)")
 @click.option("--question", required=True, help="待消歧问题")
 @click.option("--language", default="zh")
 @click.option("--rules", default=None, help="自定义规则 YAML 路径")
-def detect(domain: str, scene: str, question: str, language: str, rules: str | None) -> None:
-    """运行歧义检测并输出 JSON."""
-    from pathlib import Path
+@click.option(
+    "--scene-file", "--scene", "scene_file",
+    default=None,
+    help="场景 YAML 文件路径 (scenarios/ops.yaml 等)",
+)
+@click.option(
+    "--previous-answers",
+    default=None,
+    help='先前的澄清答案, JSON 格式: \'[{"q1":"answer1"}]\'',
+)
+def detect(
+    domain: str,
+    scene: str,
+    question: str,
+    language: str,
+    rules: str | None,
+    scene_file: str | None,
+    previous_answers: str | None,
+) -> None:
+    """运行歧义检测并输出结果 (人类可读 + JSON)."""
+    # 构建引擎
+    if scene_file:
+        engine = RuleEngine(Path(scene_file))
+    elif rules:
+        engine = RuleEngine(Path(rules))
+    else:
+        engine = RuleEngine()
 
-    engine = RuleEngine(Path(rules)) if rules else RuleEngine()
-    ctx = ClarifyContext(domain=domain, scene=scene, question=question, language=language)
+    # 解析 previous_answers
+    prev_answers = None
+    if previous_answers:
+        try:
+            prev_answers = json.loads(previous_answers)
+        except json.JSONDecodeError as exc:
+            click.echo(f"错误: --previous-answers 不是合法 JSON: {exc}", err=True)
+            sys.exit(1)
+
+    # 映射 domain 字符串到 Domain 枚举
+    domain_map = {"ops": Domain.OPS, "dev": Domain.DEV, "general": Domain.GENERAL}
+    try:
+        dom = domain_map[domain]
+    except KeyError:
+        click.echo(f"错误: 不支持的 domain '{domain}', 仅支持: {list(domain_map)}", err=True)
+        sys.exit(1)
+
+    ctx = ClarifyContext(
+        domain=dom,
+        locale=language,
+        previous_answers=prev_answers,
+    )
     result = engine.detect(ctx)
+
+    # ── 人类可读输出 ────────────────────────────────
+    click.echo("=" * 60)
+    click.echo(f"  歧义检测报告")
+    click.echo("=" * 60)
+    click.echo(f"  域:     {domain}")
+    if scene:
+        click.echo(f"  场景:   {scene}")
+    click.echo(f"  模式:   {result.mode}")
+    click.echo(f"  规则版本: {result.rule_version}")
+    if prev_answers:
+        click.echo(f"  级联轮次: {len(prev_answers)}")
+    click.echo(f"  问题数: {len(result.questions)}")
+    click.echo("-" * 60)
+
+    if result.questions:
+        for i, q in enumerate(result.questions, 1):
+            click.echo(f"  [{i}] {q.id}")
+            click.echo(f"      问题: {q.text}")
+            click.echo(f"      原因: {q.reason}")
+            if q.options:
+                click.echo(f"      选项: {', '.join(q.options)}")
+            click.echo("")
+    else:
+        click.echo("  ✓ 无需澄清, 可直接执行.")
+
+    # ── JSON 输出 (机器可读) ────────────────────────
+    click.echo("-" * 60)
+    click.echo("JSON:")
     click.echo(result.model_dump_json(indent=2))
 
 
