@@ -1,4 +1,4 @@
-"""测试级联消解逻辑."""
+"""测试级联消解逻辑 (含 pattern 匹配)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def engine() -> RuleEngine:
 def test_cascade_round1_has_questions(engine: RuleEngine) -> None:
     """第一轮 (无 previous_answers) 应返回问题列表."""
     ctx = ClarifyContext(domain=Domain.OPS)
-    result = engine.detect(ctx)
+    result = engine.detect_sync(ctx, prompt="部署到生产环境")
     assert isinstance(result, ClarifyResponse)
     assert len(result.questions) > 0
     assert result.mode == "must_clarify"
@@ -31,7 +31,7 @@ def test_cascade_round2_different_questions(engine: RuleEngine) -> None:
     """第二轮问题应与第一轮不同 (去重)."""
     # 第一轮
     ctx1 = ClarifyContext(domain=Domain.OPS)
-    r1 = engine.detect(ctx1)
+    r1 = engine.detect_sync(ctx1, prompt="部署")
     q1_ids = {q.id for q in r1.questions}
     assert len(q1_ids) > 0
 
@@ -41,9 +41,8 @@ def test_cascade_round2_different_questions(engine: RuleEngine) -> None:
 
     # 第二轮
     ctx2 = ClarifyContext(domain=Domain.OPS, previous_answers=prev_answers)
-    r2 = engine.detect(ctx2)
+    r2 = engine.detect_sync(ctx2, prompt="部署")
 
-    # 第二轮问题 ID 不应与第一轮重叠
     q2_ids = {q.id for q in r2.questions}
     overlap = q1_ids & q2_ids
     assert not overlap, (
@@ -55,12 +54,9 @@ def test_cascade_round2_different_questions(engine: RuleEngine) -> None:
 
 def test_cascade_activates_depends_on(engine: RuleEngine) -> None:
     """回答 q1 后, 依赖 q1 的规则应在第二轮出现."""
-    # 使用 ops 域: ops_deploy_strategy depends_on ops_deploy_target
     ctx1 = ClarifyContext(domain=Domain.OPS)
-    r1 = engine.detect(ctx1)
+    r1 = engine.detect_sync(ctx1, prompt="部署")
 
-    # 找到有 depends_on 引用的规则
-    from clarify.rules.engine import Rule
     deploy_target_id = "ops_deploy_target"
     deploy_strategy_id = "ops_deploy_strategy"
 
@@ -73,18 +69,15 @@ def test_cascade_activates_depends_on(engine: RuleEngine) -> None:
         domain=Domain.OPS,
         previous_answers=[{deploy_target_id: "production"}],
     )
-    r2 = engine.detect(ctx2)
+    r2 = engine.detect_sync(ctx2, prompt="部署")
 
-    # deploy_strategy 在第一轮可能被其他规则遮蔽 (非 depends_on),
-    # 但第二轮中, 如果它 depends_on deploy_target 且 deploy_target 已回答,
-    # 应该出现在第二轮
     q2_ids = {q.id for q in r2.questions}
     q1_ids = {q.id for q in r1.questions}
 
     # 第二轮不应该包含 deploy_target (已回答)
     assert deploy_target_id not in q2_ids, "已回答的问题不应再次出现"
 
-    # 第二轮问的问题应与第一轮完全不同
+    # 第二轮问题应与第一轮无重叠
     assert not (q1_ids & q2_ids), "第二轮不应与第一轮有重叠问题"
 
 
@@ -93,10 +86,9 @@ def test_cascade_activates_depends_on(engine: RuleEngine) -> None:
 def test_cascade_max_2_rounds(engine: RuleEngine) -> None:
     """超过 2 轮级联后, 不再生成问题."""
     ctx1 = ClarifyContext(domain=Domain.OPS)
-    r1 = engine.detect(ctx1)
+    r1 = engine.detect_sync(ctx1, prompt="部署")
     assert len(r1.questions) > 0
 
-    # 第 2 轮
     ctx2 = ClarifyContext(
         domain=Domain.OPS,
         previous_answers=[
@@ -104,8 +96,7 @@ def test_cascade_max_2_rounds(engine: RuleEngine) -> None:
             {"ops_alert_severity": "P1-严重"},
         ],
     )
-    r2 = engine.detect(ctx2)
-    # 两轮后应返回空或极少数问题
+    r2 = engine.detect_sync(ctx2, prompt="部署")
     assert len(r2.questions) >= 0, "不应崩溃"
 
 
@@ -118,19 +109,17 @@ def test_cascade_with_scenario_file() -> None:
     scenarios_dir = Path(__file__).resolve().parent.parent / "scenarios"
     engine = RuleEngine(scenarios_dir / "ops.yaml")
 
-    # 第一轮
     ctx1 = ClarifyContext(domain=Domain.OPS)
-    r1 = engine.detect(ctx1)
+    r1 = engine.detect_sync(ctx1, prompt="重启")
     assert len(r1.questions) > 0
 
     first_q_id = r1.questions[0].id
 
-    # 第二轮
     ctx2 = ClarifyContext(
         domain=Domain.OPS,
         previous_answers=[{first_q_id: "answer"}],
     )
-    r2 = engine.detect(ctx2)
+    r2 = engine.detect_sync(ctx2, prompt="重启")
     q1_ids = {q.id for q in r1.questions}
     q2_ids = {q.id for q in r2.questions}
     assert not (q1_ids & q2_ids), (
@@ -143,7 +132,7 @@ def test_cascade_with_scenario_file() -> None:
 def test_cascade_dev_domain(engine: RuleEngine) -> None:
     """dev 域级联消解正确."""
     ctx1 = ClarifyContext(domain=Domain.DEV)
-    r1 = engine.detect(ctx1)
+    r1 = engine.detect_sync(ctx1, prompt="设计数据模型")
     assert len(r1.questions) > 0
 
     first_q_id = r1.questions[0].id
@@ -152,8 +141,30 @@ def test_cascade_dev_domain(engine: RuleEngine) -> None:
         domain=Domain.DEV,
         previous_answers=[{first_q_id: "answer"}],
     )
-    r2 = engine.detect(ctx2)
+    r2 = engine.detect_sync(ctx2, prompt="设计数据模型")
     q1_ids = {q.id for q in r1.questions}
     q2_ids = {q.id for q in r2.questions}
     overlap = q1_ids & q2_ids
     assert not overlap, f"dev 域级联: 第二轮不应重复, 重复: {overlap}"
+
+
+# ── Test 7: 级联 + i18n 英文 ──────────────────────────
+
+def test_cascade_english_locale(engine: RuleEngine) -> None:
+    """英文 locale 级联消解."""
+    ctx1 = ClarifyContext(domain=Domain.OPS, locale="en-US")
+    r1 = engine.detect_sync(ctx1, prompt="deploy to production")
+    assert len(r1.questions) > 0
+    # 英文输出不应有中文
+    for q in r1.questions:
+        assert not any(ord(c) > 127 for c in q.text), f"英文不应含中文: {q.text}"
+
+    first_q_id = r1.questions[0].id
+    ctx2 = ClarifyContext(
+        domain=Domain.OPS, locale="en-US",
+        previous_answers=[{first_q_id: "staging"}],
+    )
+    r2 = engine.detect_sync(ctx2, prompt="deploy")
+    q1_ids = {q.id for q in r1.questions}
+    q2_ids = {q.id for q in r2.questions}
+    assert not (q1_ids & q2_ids)

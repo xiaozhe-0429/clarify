@@ -75,7 +75,7 @@ def detect(
         locale=language,
         previous_answers=prev_answers,
     )
-    result = engine.detect(ctx)
+    result = engine.detect_sync(ctx, prompt=question)
 
     # ── 人类可读输出 ────────────────────────────────
     click.echo("=" * 60)
