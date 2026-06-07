@@ -1,0 +1,13 @@
+{# 运维巡检模板 #}
+巡检报告
+=======
+主机: {{ host }}
+时间: {{ check_time }}
+
+{% for service in service_list %}
+服务: {{ service.name }}
+状态: {{ service.status|default("unknown") }}
+告警邮箱: {{ alert_email|default("ops@example.com") }}
+{% endfor %}
+
+严重程度: {{ severity|default("medium") }}
