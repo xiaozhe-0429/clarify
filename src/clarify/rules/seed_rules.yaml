@@ -230,7 +230,7 @@ rules:
     priority: 95
     mode: must_clarify
     patterns: ["API", "接口", "HTTP", "REST", "endpoint", "method"]
-    exclude_patterns: ["分页"]
+    exclude_patterns: ["分页", "性能"]
     question: "使用哪个 HTTP 方法？"
     reason: "方法语义影响幂等性和缓存行为"
     options: ["GET", "POST", "PUT", "PATCH", "DELETE"]

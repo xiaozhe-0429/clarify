@@ -134,12 +134,17 @@ def test_case_041_to_060(engine: RuleEngine, dataset: list[dict]) -> None:
         _run_one(engine, dataset[i], i)
 
 
+def test_case_061_to_072(engine: RuleEngine, dataset: list[dict]) -> None:
+    for i in range(60, 72):
+        _run_one(engine, dataset[i], i)
+
+
 # ── 汇总 ──────────────────────────────────────────────
 
 
 def test_summary_report() -> None:
     """打印覆盖率汇总."""
-    total = 60
+    total = 72
     detect_rate = _mode_pass / total * 100
     disambig_rate = _q_pass / total * 100
     composite = detect_rate * disambig_rate / 100
@@ -153,8 +158,8 @@ def test_summary_report() -> None:
         "=" * 56,
         "   Clarify v1 覆盖率测试汇总",
         "=" * 56,
-        f"   检测率: {_mode_pass}/60 ({detect_rate:.1f}%) [目标≥75%] {detect_ok}",
-        f"   准确消歧率: {_q_pass}/60 ({disambig_rate:.1f}%) [目标≥80%] {disambig_ok}",
+        f"   检测率: {_mode_pass}/{total} ({detect_rate:.1f}%) [目标≥75%] {detect_ok}",
+        f"   准确消歧率: {_q_pass}/{total} ({disambig_rate:.1f}%) [目标≥80%] {disambig_ok}",
         f"   综合覆盖率: {composite:.1f}% [目标≥60%] {composite_ok}",
         f"   误报数: {_false_positive} / 漏报数: {_false_negative}",
         "=" * 56,
