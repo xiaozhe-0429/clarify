@@ -26,7 +26,7 @@ def cli() -> None:
 @click.option("--language", default="zh")
 @click.option("--rules", default=None, help="自定义规则 YAML 路径")
 @click.option(
-    "--scene-file", "--scene", "scene_file",
+    "--scene-file",
     default=None,
     help="场景 YAML 文件路径 (scenarios/ops.yaml 等)",
 )

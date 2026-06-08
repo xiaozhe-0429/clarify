@@ -1,0 +1,430 @@
+version: 1.1.0
+description: Clarify v1 覆盖率测试数据集 (ops 24 + dev 24 + general 24, 含 M3 新增规则)
+cases:
+- prompt: 帮我部署一下
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 发布到生产环境
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 怎么部署
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 部署哪个版本
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 部署前备份
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 前提
+  - 目标
+  expected_question_count: 1
+- prompt: 帮我设置监控告警
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 告警阈值多少
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  expected_question_count: 1
+- prompt: 告警通知渠道
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 2
+- prompt: P0告警谁负责
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 指代
+  expected_question_count: 1
+- prompt: 维护窗口告警抑制
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  expected_question_count: 1
+- prompt: 扩容到10个实例
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 缩容
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 重启服务
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  - 目标
+  expected_question_count: 2
+- prompt: 优雅重启
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  expected_question_count: 2
+- prompt: 监控CPU和内存指标
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 那个服务扩容
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 指代
+  - 目标
+  expected_question_count: 2
+- prompt: 所有节点重启
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  expected_question_count: 1
+- prompt: 上线新版本
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 今天天气怎么样
+  domain: ops
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 帮我看看服务器状态
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 设计一个REST API
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: API需要认证吗
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  - 目标
+  expected_question_count: 2
+- prompt: 帮我重构这段代码
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 列表接口需要分页
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  - 目标
+  expected_question_count: 1
+- prompt: API限流怎么设
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 范围
+  - 目标
+  expected_question_count: 2
+- prompt: 数据模型关系设计
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 哪些字段建索引
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 优化这个接口的性能
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 错误响应格式
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 客户端重试策略
+  domain: dev
+  expected_mode: silent_resolve
+  expected_ambiguities:
+  - 范围
+  expected_question_count: 1
+- prompt: 错误日志用什么级别
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 选择数据库
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 缓存策略怎么选
+  domain: dev
+  expected_mode: silent_resolve
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 帮我写个hello world
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 吃了吗
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 修复一下这个bug
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 写个函数
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 使用PostgreSQL还是MongoDB
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: HTTP方法选哪个
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: JWT认证怎么实现
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 命名风格用什么
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 用Python开发
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 0
+- prompt: 缩写允许吗
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 0
+- prompt: 数据格式选JSON还是YAML
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 缩进用几个空格
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 0
+- prompt: 文档写给谁看
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 文档用中文还是英文
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  - 格式
+  expected_question_count: 2
+- prompt: 文档格式用Markdown
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 2
+- prompt: 开源许可证选哪个
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 0
+- prompt: CI/CD用什么平台
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 0
+- prompt: 仓库公开还是私有
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 分支策略用什么
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 4
+- prompt: 帮我写个邮件
+  domain: general
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 翻译这段话
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 总结一下这篇文章
+  domain: general
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 查一下资料
+  domain: general
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 今天吃什么
+  domain: general
+  expected_mode: pass
+  expected_ambiguities: []
+  expected_question_count: 0
+- prompt: 改成MIT许可证
+  domain: general
+  expected_mode: pass
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 0
+- prompt: 命名规范定一下
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 用camelCase还是snake_case
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 把这个函数重构一下
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 帮我加个日志
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 这个接口太慢了, 优化一下
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 帮我加个校验
+  domain: dev
+  expected_mode: pass
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 0
+- prompt: 把这个改成异步处理
+  domain: dev
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 服务挂了怎么办
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 2
+- prompt: 磁盘满了怎么清理
+  domain: ops
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: CPU飙到100%了
+  domain: ops
+  expected_mode: pass
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 0
+- prompt: 网络延迟太高了
+  domain: ops
+  expected_mode: pass
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 0
+- prompt: 帮我写个技术方案
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1
+- prompt: 整理一下会议纪要
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 格式
+  expected_question_count: 1
+- prompt: 帮我把这段翻成英文
+  domain: general
+  expected_mode: must_clarify
+  expected_ambiguities:
+  - 目标
+  expected_question_count: 1

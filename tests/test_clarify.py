@@ -101,7 +101,7 @@ def test_engine_loads_seed_rules(engine: RuleEngine) -> None:
     """验证种子规则库加载成功且未超过 50 条上限."""
     assert engine.rule_count > 0
     assert engine.rule_count <= 50
-    assert engine.version == "1.1.0"
+    assert engine.version == "1.3.0"
 
 
 # ═══════════════════════════════════════════════════════

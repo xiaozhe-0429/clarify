@@ -31,7 +31,8 @@ Rules:
 2. Be concise. Each question must be answerable with a short choice.
 3. Provide 2-5 options per question (when applicable).
 4. If the prompt is already clear and complete, return an empty list.
-5. Output ONLY valid JSON, no markdown, no explanation.
+5. IMPORTANT: For simple everyday requests (e.g., "帮我写个邮件", "吃了吗", "今天吃什么", "帮我写个hello world", "查一下资料", "总结一下这篇文章"), DO NOT invent ambiguities — return an empty list. These are clear actionable commands.
+6. Output ONLY valid JSON, no markdown, no explanation.
 
 Output schema:
 {
@@ -64,13 +65,15 @@ class LLMFallbackResult:
     error: Optional[str] = None
 
 
-def _build_user_prompt(prompt: str, ctx: ClarifyContext) -> str:
+def _build_user_prompt(prompt: str, ctx: ClarifyContext, covered_rule_ids: list[str] | None = None) -> str:
     """构造发给 LLM 的 user message."""
     domain = ctx.domain.value if hasattr(ctx.domain, "value") else str(ctx.domain)
     parts = [
         f"Domain: {domain}",
         f"User prompt: {prompt}",
     ]
+    if covered_rule_ids:
+        parts.append(f"Already covered rules (do NOT duplicate): {', '.join(covered_rule_ids)}")
     if ctx.recent_prompts:
         parts.append(f"Recent prompts: {', '.join(ctx.recent_prompts[-3:])}")
     if ctx.available_targets:
@@ -121,6 +124,7 @@ async def detect_with_llm(
     ctx: ClarifyContext,
     *,
     model: Optional[str] = None,
+    covered_rule_ids: Optional[list[str]] = None,
 ) -> LLMFallbackResult:
     """调 LLM 检测歧义并生成澄清问题.
 
@@ -128,6 +132,7 @@ async def detect_with_llm(
         prompt: 用户原始指令.
         ctx: 上下文 (domain, locale, recent_prompts 等).
         model: 模型名, None 则用环境变量默认值.
+        covered_rule_ids: 已被种子规则覆盖的规则 ID, LLM 应避免重复提问.
 
     Returns:
         LLMFallbackResult (questions, model, latency_ms, error).
@@ -143,7 +148,7 @@ async def detect_with_llm(
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": _build_user_prompt(prompt, ctx)},
+        {"role": "user", "content": _build_user_prompt(prompt, ctx, covered_rule_ids)},
     ]
 
     url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
@@ -192,7 +197,8 @@ def detect_with_llm_sync(
     ctx: ClarifyContext,
     *,
     model: Optional[str] = None,
+    covered_rule_ids: Optional[list[str]] = None,
 ) -> LLMFallbackResult:
     """同步版本 — 用于非 async 环境 (如 CLI)."""
     import asyncio
-    return asyncio.run(detect_with_llm(prompt, ctx, model=model))
+    return asyncio.run(detect_with_llm(prompt, ctx, model=model, covered_rule_ids=covered_rule_ids))

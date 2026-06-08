@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from jinja2.exceptions import TemplateNotFound
 from fastapi import FastAPI, Request
@@ -58,20 +60,22 @@ def get_compiler() -> TemplateCompiler:
 
 # ── App ───────────────────────────────────────────────
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    setup_logging()
+    get_engine()   # 预热加载
+    get_compiler()
+    logger.info("clarify_started")
+    yield
+
+
 app = FastAPI(
     title="Clarify v1",
     version="0.1.0",
     docs_url="/v1/docs",
     openapi_url="/v1/openapi.json",
+    lifespan=lifespan,
 )
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    setup_logging()
-    get_engine()   # 预热加载
-    get_compiler()
-    logger.info("clarify_started")
 
 
 # ── 错误码处理 ────────────────────────────────────────

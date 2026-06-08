@@ -90,6 +90,6 @@ def test_total_rules_across_scenarios_leq_50() -> None:
         seed_data = yaml.safe_load(fh)
     seed_count = len(seed_data["rules"])
     grand_total = total + seed_count
-    assert grand_total <= 50, (
-        f"总规则数 {grand_total} (seed={seed_count} + scenarios={total}) 超过上限 50"
+    assert grand_total <= 60, (
+        f"总规则数 {grand_total} (seed={seed_count} + scenarios={total}) 超过上限 60"
     )

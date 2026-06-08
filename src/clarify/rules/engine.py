@@ -53,6 +53,7 @@ def _pattern_match(rule_raw: dict, prompt: str) -> bool:
     - 如果两者都没有 → 总是匹配 (向后兼容)
     - 如果 patterns 为空列表 → 总是匹配 (通配)
     - 否则: prompt 必须包含至少一个关键词
+    - exclude_patterns: 匹配 patterns 但命中排除词 → 不触发
     """
     patterns: list[str] = rule_raw.get("patterns", [])
     # 兼容场景文件的 pattern (单数)
@@ -64,10 +65,21 @@ def _pattern_match(rule_raw: dict, prompt: str) -> bool:
         return True  # 无 patterns = 该规则无条件触发
 
     prompt_lower = prompt.lower()
+    matched = False
     for pat in patterns:
         if pat.lower() in prompt_lower:
-            return True
-    return False
+            matched = True
+            break
+    if not matched:
+        return False
+
+    # exclude_patterns: 命中排除词则规则不触发
+    exclude_patterns: list[str] = rule_raw.get("exclude_patterns", [])
+    if exclude_patterns:
+        for pat in exclude_patterns:
+            if pat.lower() in prompt_lower:
+                return False
+    return True
 
 
 # ── Rule ───────────────────────────────────────────────
@@ -77,7 +89,7 @@ class Rule:
 
     __slots__ = (
         "id", "domain", "scene", "priority", "mode",
-        "depends_on", "_raw",
+        "depends_on", "default_option", "_raw",
     )
 
     def __init__(self, raw: dict) -> None:
@@ -87,6 +99,7 @@ class Rule:
         self.priority: int = raw.get("priority", 50)
         self.mode: str = raw.get("mode", "must_clarify")
         self.depends_on: Optional[str] = raw.get("depends_on")
+        self.default_option: Optional[str] = raw.get("default_option")
         self._raw = raw  # 保留完整 raw, i18n 时用
 
     def i18n_question(self, locale: str) -> str:
@@ -268,13 +281,29 @@ class RuleEngine:
                 options=q_options,
             ))
 
+        # ── 收集已覆盖的规则 ID (用于 LLM fallback) ──
+        covered_rule_ids: list[str] = [r.id for r in rules]
+
         # ── LLM Fallback ──────────────────────────
         if not questions and not is_cascade and prompt:
-            from clarify.llm_fallback import detect_with_llm
-            llm_result = await detect_with_llm(prompt, ctx)
-            if llm_result.questions:
-                questions = llm_result.questions
-                mode = "must_clarify"
+            # 短且无技术关键词的 prompt 跳过 LLM fallback
+            skip_llm = False
+            if len(prompt) < 15:
+                tech_keywords = [
+                    "部署", "API", "HTTP", "REST", "数据库", "索引", "索引",
+                    "监控", "告警", "缓存", "限流", "认证", "JWT", "OAuth",
+                    "格式", "命名", "许可证", "CI", "版本", "策略", "重启",
+                    "扩容", "缩容", "备份", "文档", "分支", "仓库", "接口",
+                ]
+                if not any(kw in prompt for kw in tech_keywords):
+                    skip_llm = True
+
+            if not skip_llm:
+                from clarify.llm_fallback import detect_with_llm
+                llm_result = await detect_with_llm(prompt, ctx, covered_rule_ids=covered_rule_ids)
+                if llm_result.questions:
+                    questions = llm_result.questions
+                    mode = "must_clarify"
 
         latency = (time.perf_counter() - t0) * 1000
 

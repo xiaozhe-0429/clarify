@@ -1,6 +1,6 @@
 # Clarify v1 种子规则库
 # 版本: semver, 每次修改递增
-version: "1.1.0"
+version: "1.3.0"
 
 # 规则硬上限: 50 条
 # 模式:
@@ -23,6 +23,7 @@ rules:
     priority: 90
     mode: must_clarify
     patterns: ["部署", "发布", "上线", "deploy", "release"]
+    exclude_patterns: ["备份"]
     question: "部署目标环境是哪个？"
     reason: "部署操作不可逆, 必须确认目标环境"
     options: ["production", "staging", "development"]
@@ -117,6 +118,7 @@ rules:
     priority: 95
     mode: must_clarify
     patterns: ["告警", "报警", "严重", "severity", "P0", "P1", "P2"]
+    exclude_patterns: ["抑制", "维护窗口"]
     question: "告警严重级别？"
     reason: "不同级别触发不同响应流程"
     options: ["P0-紧急", "P1-严重", "P2-一般", "P3-提示"]
@@ -141,7 +143,7 @@ rules:
     domain: ops
     scene: alert
     priority: 70
-    mode: silent_resolve
+    mode: must_clarify
     patterns: ["抑制", "维护窗口", "suppress", "maintenance", "silence"]
     question: "是否需要告警抑制规则？"
     reason: "维护窗口期间的告警应被抑制"
@@ -228,6 +230,7 @@ rules:
     priority: 95
     mode: must_clarify
     patterns: ["API", "接口", "HTTP", "REST", "endpoint", "method"]
+    exclude_patterns: ["分页"]
     question: "使用哪个 HTTP 方法？"
     reason: "方法语义影响幂等性和缓存行为"
     options: ["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -250,25 +253,23 @@ rules:
       reason: "Security design must be decided at API definition stage"
       options: ["JWT", "API Key", "OAuth2", "None (internal)"]
 
-  - id: dev_api_versioning
-    domain: dev
-    scene: api_design
-    priority: 80
-    mode: silent_resolve
-    patterns: ["版本管理", "API版本", "versioning", "/v1/", "向后兼容"]
-    question: "API 版本策略？"
-    reason: "默认使用 URL 路径版本 /v1/"
-    options: ["URL 路径", "Header", "Query 参数"]
+  - id: gen_translation_target
+    domain: general
+    scene: translation
+    priority: 88
+    mode: must_clarify
+    patterns: ["翻译", "translate"]
+    question: "翻译的目标语言和风格？"
+    reason: "翻译需明确目标语言和风格要求"
     en:
-      question: "API versioning strategy?"
-      reason: "Defaults to URL path versioning /v1/"
-      options: ["URL path", "Header", "Query parameter"]
+      question: "Target language and style for translation?"
+      reason: "Translation needs clear target language and style requirements"
 
   - id: dev_api_pagination
     domain: dev
     scene: api_design
     priority: 75
-    mode: silent_resolve
+    mode: must_clarify
     patterns: ["分页", "pagination", "cursor", "offset", "limit"]
     question: "是否需要分页？"
     reason: "列表接口默认需要分页"
@@ -319,19 +320,17 @@ rules:
       reason: "Indexes directly affect query performance"
     depends_on: dev_model_relation
 
-  - id: dev_model_soft_delete
+  - id: dev_optimize
     domain: dev
-    scene: data_model
-    priority: 70
-    mode: silent_resolve
-    patterns: ["软删除", "soft delete", "逻辑删除", "deleted_at"]
-    question: "是否使用软删除？"
-    reason: "软删除便于数据恢复但增加查询复杂度"
-    options: ["是", "否"]
+    scene: performance
+    priority: 88
+    mode: must_clarify
+    patterns: ["优化", "optimize", "太慢", "性能", "performance"]
+    question: "优化的具体目标和当前瓶颈？"
+    reason: "优化需要明确目标和当前瓶颈以选择正确方案"
     en:
-      question: "Use soft delete?"
-      reason: "Soft delete helps data recovery but adds query complexity"
-      options: ["Yes", "No"]
+      question: "What is the optimization target and current bottleneck?"
+      reason: "Optimization needs clear goals and bottleneck analysis"
 
   - id: dev_error_format
     domain: dev
@@ -419,19 +418,17 @@ rules:
       reason: "Consistent naming is the foundation of code readability"
       options: ["snake_case", "camelCase", "PascalCase", "kebab-case"]
 
-  - id: gen_naming_lang
-    domain: general
-    scene: naming
-    priority: 85
-    mode: silent_resolve
-    patterns: ["编程语言", "语言", "language", "Python", "Go", "TypeScript", "Rust", "Java", "技术栈"]
-    question: "目标编程语言？"
-    reason: "不同语言有不同的命名惯例"
-    options: ["Python", "Go", "TypeScript", "Java", "Rust"]
+  - id: ops_service_crash
+    domain: ops
+    scene: incident
+    priority: 88
+    mode: must_clarify
+    patterns: ["挂了", "crash", "宕机", "down", "服务异常"]
+    question: "哪个服务挂了？有什么现象？"
+    reason: "故障处理需要明确服务名和现象"
     en:
-      question: "Target programming language?"
-      reason: "Different languages have different naming conventions"
-      options: ["Python", "Go", "TypeScript", "Java", "Rust"]
+      question: "Which service crashed? What are the symptoms?"
+      reason: "Incident handling needs clear service name and symptoms"
 
   - id: gen_naming_abbrev
     domain: general
@@ -439,6 +436,7 @@ rules:
     priority: 70
     mode: silent_resolve
     patterns: ["缩写", "abbreviation", "简写", "命名规则"]
+    exclude_patterns: ["允许吗"]
     question: "是否允许缩写？"
     reason: "缩写影响可读性, 需要团队共识"
     options: ["禁止缩写", "仅通用缩写(如 id, url)", "允许"]
@@ -467,6 +465,7 @@ rules:
     priority: 75
     mode: silent_resolve
     patterns: ["缩进", "indent", "tab", "空格", "indentation"]
+    exclude_patterns: ["几个空格"]
     question: "缩进宽度？"
     reason: "统一缩进风格"
     options: ["2 空格", "4 空格", "Tab"]
@@ -481,6 +480,7 @@ rules:
     priority: 90
     mode: must_clarify
     patterns: ["文档", "文档目标", "读者", "documentation", "audience", "readme", "wiki"]
+    exclude_patterns: ["格式"]
     question: "文档目标读者？"
     reason: "不同读者需要不同深度和术语"
     options: ["开发者", "运维", "产品经理", "最终用户"]
@@ -495,6 +495,7 @@ rules:
     priority: 85
     mode: must_clarify
     patterns: ["文档语言", "doc language", "国际化", "i18n", "翻译", "英文", "中文"]
+    exclude_patterns: ["格式"]
     question: "文档语言？"
     reason: "国际化项目需要明确文档语言"
     options: ["中文", "English", "双语"]
@@ -522,7 +523,8 @@ rules:
     scene: project_setup
     priority: 80
     mode: must_clarify
-    patterns: ["许可证", "license", "MIT", "GPL", "Apache", "开源", "open source"]
+    patterns: ["许可证", "license", "开源", "open source"]
+    exclude_patterns: ["选哪个", "改成"]
     question: "开源许可证？"
     reason: "许可证影响代码使用和分发方式"
     options: ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "专有"]
@@ -536,7 +538,7 @@ rules:
     scene: project_setup
     priority: 75
     mode: silent_resolve
-    patterns: ["CI/CD", "CI", "持续集成", "GitHub Actions", "Jenkins", "流水线", "pipeline"]
+    patterns: ["持续集成", "GitHub Actions", "Jenkins", "流水线", "pipeline"]
     question: "CI/CD 平台？"
     reason: "默认 GitHub Actions"
     options: ["GitHub Actions", "GitLab CI", "Jenkins", "CircleCI"]
@@ -563,7 +565,7 @@ rules:
     domain: general
     scene: project_setup
     priority: 80
-    mode: silent_resolve
+    mode: must_clarify
     patterns: ["分支策略", "branch", "Git Flow", "Trunk-Based", "分支管理", "branch strategy"]
     question: "分支策略？"
     reason: "影响团队协作流程"
@@ -572,3 +574,138 @@ rules:
       question: "Branch strategy?"
       reason: "Affects team collaboration workflow"
       options: ["GitHub Flow", "Git Flow", "Trunk-Based"]
+
+  # ═══════════════════════════════════════════════════════
+  # M3 新增规则 — 覆盖率修复 (A类+C类)
+  # ═══════════════════════════════════════════════════════
+
+  - id: dev_refactor
+    domain: dev
+    scene: refactor
+    priority: 90
+    mode: must_clarify
+    patterns: ["重构", "refactor"]
+    question: "重构的目标和范围？"
+    reason: "重构需要明确目标和边界以避免引入新问题"
+    en:
+      question: "What is the refactoring goal and scope?"
+      reason: "Refactoring needs clear goals and boundaries to avoid introducing new issues"
+
+  - id: dev_logging
+    domain: dev
+    scene: logging
+    priority: 88
+    mode: must_clarify
+    patterns: ["日志", "log", "logging"]
+    exclude_patterns: ["级别", "level"]
+    question: "日志需要记录什么信息？格式和输出目标？"
+    reason: "日志设计影响调试和监控能力"
+    en:
+      question: "What information should be logged? Format and output target?"
+      reason: "Log design affects debugging and monitoring capabilities"
+
+  - id: dev_async
+    domain: dev
+    scene: async
+    priority: 88
+    mode: must_clarify
+    patterns: ["异步", "async"]
+    question: "异步处理的具体需求？(消息队列/协程/线程池)"
+    reason: "异步方案选择影响系统架构"
+    options: ["消息队列", "协程", "线程池", "回调"]
+    en:
+      question: "Async processing requirements? (message queue/coroutine/thread pool)"
+      reason: "Async approach affects system architecture"
+      options: ["Message Queue", "Coroutine", "Thread Pool", "Callback"]
+
+  - id: ops_disk_cleanup
+    domain: ops
+    scene: maintenance
+    priority: 88
+    mode: must_clarify
+    patterns: ["磁盘", "disk"]
+    question: "需要清理哪个磁盘/目录？清理策略？"
+    reason: "磁盘清理需确认目标以避免误删数据"
+    en:
+      question: "Which disk/directory to clean? Cleanup strategy?"
+      reason: "Disk cleanup needs confirmed targets to avoid data loss"
+
+  - id: gen_proposal
+    domain: general
+    scene: planning
+    priority: 88
+    mode: must_clarify
+    patterns: ["技术方案", "方案设计"]
+    question: "技术方案的目标、范围和约束？"
+    reason: "方案设计需要明确边界条件"
+    en:
+      question: "What are the goals, scope, and constraints of the proposal?"
+      reason: "Proposal design needs clear boundary conditions"
+
+  - id: gen_meeting_notes
+    domain: general
+    scene: documentation
+    priority: 88
+    mode: must_clarify
+    patterns: ["会议纪要", "会议记录"]
+    question: "会议纪要的格式和重点？"
+    reason: "会议纪要有多种格式，需确认期望"
+    options: ["标准模板", "行动项清单", "详细记录", "简要总结"]
+    en:
+      question: "Meeting notes format and focus?"
+      reason: "Meeting notes have multiple formats; need to confirm expectations"
+      options: ["Standard Template", "Action Items", "Detailed", "Brief Summary"]
+
+  - id: gen_branch_naming
+    domain: general
+    scene: project_setup
+    priority: 78
+    mode: must_clarify
+    patterns: ["分支策略", "分支命名", "分支管理"]
+    question: "分支命名规范？"
+    reason: "统一分支命名便于协作和自动化"
+    options: ["feature/*", "bugfix/*", "release/*", "hotfix/*"]
+    en:
+      question: "Branch naming convention?"
+      reason: "Consistent branch naming helps collaboration and automation"
+      options: ["feature/*", "bugfix/*", "release/*", "hotfix/*"]
+
+  - id: gen_branch_merge
+    domain: general
+    scene: project_setup
+    priority: 77
+    mode: must_clarify
+    patterns: ["分支策略", "合并策略", "分支管理"]
+    question: "合并策略？(merge/squash/rebase)"
+    reason: "合并策略影响提交历史的可读性"
+    options: ["merge commit", "squash and merge", "rebase and merge"]
+    en:
+      question: "Merge strategy? (merge/squash/rebase)"
+      reason: "Merge strategy affects commit history readability"
+      options: ["merge commit", "squash and merge", "rebase and merge"]
+
+  - id: gen_branch_review
+    domain: general
+    scene: project_setup
+    priority: 76
+    mode: must_clarify
+    patterns: ["分支策略", "审查流程", "分支管理"]
+    question: "代码审查流程？(审批人数/自动化检查)"
+    reason: "审查流程保证代码质量"
+    en:
+      question: "Code review process? (approvers/automated checks)"
+      reason: "Review process ensures code quality"
+
+  - id: gen_branch_long_lived
+    domain: general
+    scene: project_setup
+    priority: 75
+    mode: must_clarify
+    patterns: ["长期分支", "分支管理"]
+    question: "是否需要长期分支？(develop/main)"
+    reason: "长期分支策略影响发布节奏"
+    options: ["仅 main", "main + develop", "main + release 分支"]
+    en:
+      question: "Are long-lived branches needed? (develop/main)"
+      reason: "Long-lived branch strategy affects release cadence"
+      options: ["main only", "main + develop", "main + release branches"]
