@@ -67,18 +67,14 @@ class LLMFallbackResult:
 
 def _build_user_prompt(prompt: str, ctx: ClarifyContext, covered_rule_ids: list[str] | None = None) -> str:
     """构造发给 LLM 的 user message."""
-    domain = ctx.domain.value if hasattr(ctx.domain, "value") else str(ctx.domain)
-    parts = [
-        f"Domain: {domain}",
-        f"User prompt: {prompt}",
-    ]
+    parts = [prompt]
     if covered_rule_ids:
-        parts.append(f"Already covered rules (do NOT duplicate): {', '.join(covered_rule_ids)}")
+        parts.append(f"\n[context] Already covered rules (don't duplicate): {', '.join(covered_rule_ids)}")
     if ctx.recent_prompts:
-        parts.append(f"Recent prompts: {', '.join(ctx.recent_prompts[-3:])}")
+        parts.append(f"\n[context] Recent prompts: {', '.join(ctx.recent_prompts[-3:])}")
     if ctx.available_targets:
-        parts.append(f"Available targets: {', '.join(ctx.available_targets[:10])}")
-    return "\n".join(parts)
+        parts.append(f"\n[context] Available targets: {', '.join(ctx.available_targets[:10])}")
+    return "".join(parts)
 
 
 def _parse_llm_response(text: str) -> list[ClarifyQuestion]:

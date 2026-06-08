@@ -286,14 +286,11 @@ class RuleEngine:
 
         # ── LLM Fallback ──────────────────────────
         if not questions and not is_cascade and prompt:
-            # 短且无技术关键词的 prompt 跳过 LLM fallback
+            # 极短（≤3字符）且无技术关键词的 prompt 跳过 LLM fallback
             skip_llm = False
-            if len(prompt) < 15:
+            if len(prompt) <= 3:
                 tech_keywords = [
-                    "部署", "API", "HTTP", "REST", "数据库", "索引", "索引",
-                    "监控", "告警", "缓存", "限流", "认证", "JWT", "OAuth",
-                    "格式", "命名", "许可证", "CI", "版本", "策略", "重启",
-                    "扩容", "缩容", "备份", "文档", "分支", "仓库", "接口",
+                    "API", "HTTP", "JWT", "CI", "QA",
                 ]
                 if not any(kw in prompt for kw in tech_keywords):
                     skip_llm = True
