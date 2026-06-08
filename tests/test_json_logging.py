@@ -2,7 +2,6 @@
 
 import json
 import logging
-import io
 from clarify.logging import JsonFormatter
 
 

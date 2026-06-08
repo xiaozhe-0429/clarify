@@ -400,10 +400,10 @@ cases:
   expected_question_count: 1
 - prompt: CPU飙到100%了
   domain: ops
-  expected_mode: pass
+  expected_mode: must_clarify
   expected_ambiguities:
   - 目标
-  expected_question_count: 0
+  expected_question_count: 1
 - prompt: 网络延迟太高了
   domain: ops
   expected_mode: pass

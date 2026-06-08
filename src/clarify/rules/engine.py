@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import copy
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -128,7 +126,7 @@ class RuleEngine:
     - previous_answers 影响后续匹配 (级联消解)
     """
 
-    MAX_RULES = 50
+    MAX_RULES = 60
     MAX_CASCADE_ROUNDS = 2
 
     def __init__(self, rules_path: Optional[Path] = None) -> None:
@@ -244,10 +242,6 @@ class RuleEngine:
         3. 级联消解: previous_answers 非空时自动匹配下一轮
         """
         import uuid
-        import time
-
-        t0 = time.perf_counter()
-
         rules = self.match(ctx, prompt=prompt)
         locale = ctx.locale if ctx.locale else "zh-CN"
         is_cascade = bool(ctx.previous_answers)
@@ -301,8 +295,6 @@ class RuleEngine:
                 if llm_result.questions:
                     questions = llm_result.questions
                     mode = "must_clarify"
-
-        latency = (time.perf_counter() - t0) * 1000
 
         return ClarifyResponse(
             mode=mode,

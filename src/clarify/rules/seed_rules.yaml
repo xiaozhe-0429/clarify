@@ -307,6 +307,13 @@ rules:
       reason: "Relationship type determines database schema design"
       options: ["1:1", "1:N", "N:M"]
 
+  - id: dev_model_index_specific
+    domain: dev
+    scene: data_model
+    priority: 90
+    mode: pass
+    patterns: ["哪些字段建索引", "哪些表建索引"]
+
   - id: dev_model_index
     domain: dev
     scene: data_model
@@ -429,6 +436,28 @@ rules:
     en:
       question: "Which service crashed? What are the symptoms?"
       reason: "Incident handling needs clear service name and symptoms"
+
+  - id: ops_cpu_spike
+    domain: ops
+    scene: incident
+    priority: 85
+    mode: must_clarify
+    patterns: ["CPU", "飙高", "飙升", "spike", "负载高"]
+    question: "哪个环境的 CPU 飙高？"
+    reason: "需要明确环境才能排查"
+    options: ["生产环境", "预发布", "测试环境"]
+    en:
+      question: "Which environment's CPU spiked?"
+      reason: "Need to clarify the environment for troubleshooting"
+      options: ["Production", "Staging", "Testing"]
+
+  # 改成: 用户已明确指定具体值, 不需要澄清
+  - id: gen_already_decided
+    domain: general
+    scene: general
+    priority: 60
+    mode: pass
+    patterns: ["改成"]
 
   - id: gen_naming_abbrev
     domain: general

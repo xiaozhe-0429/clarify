@@ -1,4 +1,5 @@
 """检查 compile 端点 metrics 记录。"""
+import re
 from fastapi.testclient import TestClient
 from clarify.api import app
 client = TestClient(app)
@@ -13,7 +14,6 @@ resp3 = client.get('/v1/metrics')
 assert 'compile_template_success_total' in resp3.text
 
 # Prometheus label 格式是 {key="val",key2="val2"} 连在一起，用正则安全匹配
-import re
 assert re.search(r'compile_template_success_total\{[^}]*status="success"', resp3.text), "success counter not found in metrics"
 assert re.search(r'compile_template_success_total\{[^}]*status="failure"', resp3.text), "failure counter not found in metrics"
 

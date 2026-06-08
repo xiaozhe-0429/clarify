@@ -37,7 +37,7 @@ def test_metrics_contains_rules_matched_total(client) -> None:
 
 def test_compile_success_increments_counter(client) -> None:
     """验证编译成功后 compile_template_success_total.labels(status="success") 增加."""
-    compiler = get_compiler()
+    get_compiler()  # warm up
     template_name = "default.j2"
 
     # 先获取基准值

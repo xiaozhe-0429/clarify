@@ -1,7 +1,6 @@
 """Clarify v1 测试 — pattern 匹配 + i18n."""
 
 import pytest
-from pathlib import Path
 
 from clarify.models import ClarifyContext, ClarifyResponse, Domain
 from clarify.rules.engine import RuleEngine, _pattern_match, _i18n, _is_chinese_locale
@@ -100,7 +99,7 @@ def test_is_chinese_locale() -> None:
 def test_engine_loads_seed_rules(engine: RuleEngine) -> None:
     """验证种子规则库加载成功且未超过 50 条上限."""
     assert engine.rule_count > 0
-    assert engine.rule_count <= 50
+    assert engine.rule_count <= 60
     assert engine.version == "1.3.0"
 
 
@@ -321,7 +320,7 @@ def test_template_dev_review_render(compiler: TemplateCompiler) -> None:
 def test_template_not_found_returns_bind_error() -> None:
     """编译不存在的模板应返回 TEMPLATE_BIND_ERROR."""
     from fastapi.testclient import TestClient
-    from clarify.api import app, get_compiler
+    from clarify.api import app
 
     client = TestClient(app)
     resp = client.post("/v1/compile", json={

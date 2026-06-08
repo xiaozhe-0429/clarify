@@ -58,7 +58,6 @@ def test_cascade_activates_depends_on(engine: RuleEngine) -> None:
     r1 = engine.detect_sync(ctx1, prompt="部署")
 
     deploy_target_id = "ops_deploy_target"
-    deploy_strategy_id = "ops_deploy_strategy"
 
     assert any(q.id == deploy_target_id for q in r1.questions), (
         "第一轮应包含 ops_deploy_target"

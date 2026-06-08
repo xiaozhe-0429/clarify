@@ -18,8 +18,8 @@ _src = str(Path(__file__).resolve().parent.parent / "src")
 if _src not in sys.path:
     sys.path.insert(0, _src)
 
-from clarify.models import ClarifyContext, Domain
-from clarify.rules.engine import RuleEngine
+from clarify.models import ClarifyContext, Domain  # noqa: E402
+from clarify.rules.engine import RuleEngine  # noqa: E402
 
 
 # ── helpers ────────────────────────────────────────────

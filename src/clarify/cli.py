@@ -11,7 +11,7 @@ import uvicorn
 
 from clarify.rules.engine import RuleEngine
 from clarify.compile import TemplateCompiler
-from clarify.models import ClarifyContext, ClarifyRequest, Domain
+from clarify.models import ClarifyContext, Domain
 
 
 @click.group()
@@ -79,7 +79,7 @@ def detect(
 
     # ── 人类可读输出 ────────────────────────────────
     click.echo("=" * 60)
-    click.echo(f"  歧义检测报告")
+    click.echo("  歧义检测报告")
     click.echo("=" * 60)
     click.echo(f"  域:     {domain}")
     if scene:
