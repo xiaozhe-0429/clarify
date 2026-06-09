@@ -1,6 +1,6 @@
 # Clarify v1 种子规则库
 # 版本: semver, 每次修改递增
-version: "1.3.0"
+version: "1.3.1"
 
 # 规则硬上限: 50 条
 # 模式:
@@ -385,6 +385,7 @@ rules:
     priority: 90
     mode: must_clarify
     patterns: ["数据库", "database", "DB", "PostgreSQL", "MySQL", "MongoDB", "Redis", "存储", "storage"]
+    exclude_patterns: ["连接超时", "连接失败", "超时", "连不上"]
     question: "选择哪种数据库？"
     reason: "数据库选型影响整体架构"
     options: ["PostgreSQL", "MySQL", "MongoDB", "Redis"]
@@ -626,7 +627,7 @@ rules:
     priority: 88
     mode: must_clarify
     patterns: ["日志", "log", "logging"]
-    exclude_patterns: ["级别", "level"]
+    exclude_patterns: ["级别", "level", "/var/log/", "error.log", "access.log", "syslog", "journalctl"]
     question: "日志需要记录什么信息？格式和输出目标？"
     reason: "日志设计影响调试和监控能力"
     en:
@@ -737,4 +738,35 @@ rules:
     en:
       question: "Are long-lived branches needed? (develop/main)"
       reason: "Long-lived branch strategy affects release cadence"
-      options: ["main only", "main + develop", "main + release branches"]
+      options: ["Only main", "main + develop", "main + release branches"]
+
+  # 通用模糊操作检测：用户使用"查/看/找"等动作词但未指定目标对象
+  - id: gen_action_vague
+    domain: general
+    scene: action
+    priority: 45
+    mode: must_clarify
+    patterns: ["查", "看", "找", "检查", "查看", "显示"]
+    exclude_patterns:
+      - "/var/"
+      - "/etc/"
+      - "/home/"
+      - "/opt/"
+      - "/usr/"
+      - "/tmp/"
+      - "error.log"
+      - "access.log"
+      - "syslog"
+      - "journalctl"
+      - "资料"
+      - "天气"
+      - "新闻"
+      - "时间"
+      - "日历"
+      - "新闻"
+      - "菜谱"
+    question: "具体要查看/检查什么？"
+    reason: "操作对象不明确，需要补充目标信息"
+    en:
+      question: "What specifically should be checked or inspected?"
+      reason: "The operation target is unclear; more information is needed"
