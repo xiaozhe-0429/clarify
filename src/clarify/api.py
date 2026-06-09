@@ -1,18 +1,29 @@
-"""FastAPI 路由 — /v1/clarify + /v1/compile + 指标端点."""
+"""Clarify Engine — FastAPI application."""
 
 from __future__ import annotations
 
+import logging
+import os
 import time
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+import uuid
+from typing import Optional
 
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from jinja2.exceptions import TemplateNotFound
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 
+from clarify.models import (
+    ClarifyRequest,
+    ClarifyResponse,
+    CompileRequest,
+    CompileResponse,
+    ErrorCode,
+    ClarifyContext,
+)
 from clarify.compile import TemplateCompiler
-from clarify.logging import get_logger, setup_logging
+from clarify.rules.engine import RuleEngine
 from clarify.metrics import (
     clarify_latency_seconds,
     compile_template_missing_vars_total,
@@ -24,17 +35,8 @@ from clarify.metrics import (
     rules_matched_total,
     get_metrics,
 )
-from clarify.models import (
-    ClarifyContext,
-    ClarifyRequest,
-    ClarifyResponse,
-    CompileRequest,
-    CompileResponse,
-    ErrorCode,
-)
-from clarify.rules.engine import RuleEngine
 
-logger = get_logger()
+logger = logging.getLogger("clarify.api")
 
 # ── 全局 ──────────────────────────────────────────────
 
@@ -58,27 +60,65 @@ def get_compiler() -> TemplateCompiler:
     return _compiler
 
 
-# ── App ───────────────────────────────────────────────
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    setup_logging()
-    get_engine()   # 预热加载
-    get_compiler()
-    logger.info("clarify_started")
-    yield
-
-
 app = FastAPI(
-    title="Clarify v1",
+    title="Clarify Engine",
+    description="AI prompt 歧义检测与消解服务",
     version="0.1.0",
-    docs_url="/v1/docs",
-    openapi_url="/v1/openapi.json",
-    lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
+# ── 启动加载规则 ──────────────────────────────────────
+
+@app.on_event("startup")
+async def _on_startup() -> None:
+    """服务启动时预热加载规则引擎和编译器."""
+    engine = get_engine()
+    compiler = get_compiler()
+    logger.info("rules loaded count=%d", engine.rule_count)
+
+
+# ── 场景 → domain 映射 (从 seed_rules.yaml 自动构建) ──
+
+SCENE_DOMAIN_MAP: dict[str, str] = {
+    # ops
+    "deploy": "ops", "monitor": "ops", "alert": "ops",
+    "scale": "ops", "restart": "ops", "incident": "ops",
+    "maintenance": "ops",
+    # dev
+    "api_design": "dev", "data_model": "dev", "performance": "dev",
+    "error_handling": "dev", "tech_stack": "dev", "refactor": "dev",
+    "logging": "dev", "async": "dev",
+    # general
+    "translation": "general", "naming": "general", "format": "general",
+    "documentation": "general", "project_setup": "general",
+    "planning": "general",
+}
+
+
+def _derive_domain(scene: str) -> str:
+    """从场景名推导 domain."""
+    if not scene:
+        return "general"
+    # 检查是否有 domain_ 前缀
+    for prefix in ("ops_", "dev_", "general_"):
+        if scene.startswith(prefix):
+            return prefix.rstrip("_")
+    # 从映射表查找
+    for s, d in SCENE_DOMAIN_MAP.items():
+        if scene == s or scene.startswith(s + "_"):
+            return d
+    return "general"
+
+
 # ── 错误码处理 ────────────────────────────────────────
+
 
 def _error_response(code: ErrorCode, detail: str, status: int) -> JSONResponse:
     logger.warning("error_response", code=code.value, detail=detail)
@@ -103,6 +143,7 @@ def _validate_context(ctx: ClarifyContext) -> JSONResponse | None:
 
 
 # ── Routes ────────────────────────────────────────────
+
 
 @app.post("/v1/clarify", response_model=ClarifyResponse)
 async def clarify(req: ClarifyRequest) -> ClarifyResponse | JSONResponse:
@@ -188,12 +229,27 @@ def _missing_bucket(n: int) -> str:
 @app.post("/v1/compile", response_model=CompileResponse)
 async def compile_template(req: CompileRequest) -> CompileResponse | JSONResponse:
     """模板编译 — POST /v1/compile."""
-    import uuid
-
     compiler = get_compiler()
+
+    # 如果 template_name 为空, 从 context.domain + context.scene 推导
     template_name = req.template_name
+    if not template_name and req.context:
+        domain_val = (
+            req.context.domain.value
+            if hasattr(req.context.domain, "value")
+            else str(req.context.domain)
+        )
+        scene = req.context.scene or "general"
+        template_name = f"{domain_val}.{scene}"
+    if not template_name:
+        return _error_response(
+            ErrorCode.TEMPLATE_ERROR,
+            "template_name is required and could not be derived from context",
+            422,
+        )
+
     try:
-        rendered, missing = compiler.render(req.template_name, req.answers or {})
+        rendered, missing = compiler.render(template_name, req.answers or {})
     except TemplateNotFound:
         compile_template_success_total.labels(
             template_name=template_name, status="failure"
@@ -227,11 +283,12 @@ async def compile_template(req: CompileRequest) -> CompileResponse | JSONRespons
     return CompileResponse(
         rendered=rendered,
         missing_vars=missing,
+        original=req.original,
         log_id=str(uuid.uuid4()),
     )
 
 
-@app.get("/v1/metrics")
+@app.get("/metrics")
 async def metrics() -> Response:
     """Prometheus 指标端点."""
     return Response(content=get_metrics(), media_type="text/plain")
@@ -244,6 +301,7 @@ async def health() -> dict[str, str]:
 
 # ── Rules (M1-3d) ─────────────────────────────────
 
+
 @app.get("/v1/rules")
 async def list_rules() -> dict:
     """返回所有规则列表 — GET /v1/rules."""
@@ -253,6 +311,7 @@ async def list_rules() -> dict:
 
 
 # ── 全局异常处理 ──────────────────────────────────────
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:

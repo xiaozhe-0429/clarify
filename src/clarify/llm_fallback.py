@@ -7,9 +7,37 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 import httpx
+
+
+# ── 自动加载 .env ────────────────────────────────────
+
+def _load_dotenv(path: str) -> None:
+    """加载 .env 文件, 不覆盖已有环境变量."""
+    p = Path(path)
+    if not p.exists():
+        return
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+# 搜索 .env (项目目录 + ~/.clarify/)
+for _env_path in [
+    os.path.join(os.path.dirname(__file__), "..", "..", ".env"),
+    os.path.join(os.path.dirname(__file__), ".env"),
+    os.path.expanduser("~/.clarify/.env"),
+]:
+    _load_dotenv(_env_path)
 
 from clarify.models import ClarifyContext, ClarifyQuestion
 

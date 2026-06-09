@@ -13,6 +13,50 @@ from clarify.rules.engine import RuleEngine
 from clarify.compile import TemplateCompiler
 from clarify.models import ClarifyContext, Domain
 
+# ── Scene → Domain 推导 ─────────────────────────────────
+SCENE_DOMAIN_MAP: dict[str, str] = {
+    "deploy": "ops",
+    "monitor": "ops",
+    "alert": "ops",
+    "scale": "ops",
+    "restart": "ops",
+    "incident": "ops",
+    "maintenance": "ops",
+    "api_design": "dev",
+    "data_model": "dev",
+    "performance": "dev",
+    "error_handling": "dev",
+    "tech_stack": "dev",
+    "refactor": "dev",
+    "logging": "dev",
+    "async": "dev",
+    "translation": "general",
+    "naming": "general",
+    "format": "general",
+    "documentation": "general",
+    "project_setup": "general",
+    "planning": "general",
+}
+
+
+def _derive_domain_from_scene(scene: str) -> tuple[str, str]:
+    """Derive domain and clean scene from scene name.
+
+    Returns (domain, cleaned_scene).
+    """
+    if not scene:
+        return "general", ""
+
+    # {domain}_{subscene} 格式, 例如 ops_deploy → (ops, deploy)
+    if "_" in scene:
+        prefix, suffix = scene.split("_", 1)
+        if prefix in ("ops", "dev", "general"):
+            return prefix, suffix
+
+    # 硬编码映射表查找
+    dom = SCENE_DOMAIN_MAP.get(scene, "general")
+    return dom, scene
+
 
 @click.group()
 def cli() -> None:
@@ -20,7 +64,7 @@ def cli() -> None:
 
 
 @cli.command()
-@click.option("--domain", required=True, help="业务域: ops / dev / general")
+@click.option("--domain", default=None, help="业务域: ops / dev / general (未提供时从场景名推导)")
 @click.option("--scene", default="", help="场景 (seed 规则库必填, 场景文件可选)")
 @click.option("--question", required=True, help="待消歧问题")
 @click.option("--language", default="zh")
@@ -36,7 +80,7 @@ def cli() -> None:
     help='先前的澄清答案, JSON 格式: \'[{"q1":"answer1"}]\'',
 )
 def detect(
-    domain: str,
+    domain: str | None,
     scene: str,
     question: str,
     language: str,
@@ -45,6 +89,12 @@ def detect(
     previous_answers: str | None,
 ) -> None:
     """运行歧义检测并输出结果 (人类可读 + JSON)."""
+    # ── 从场景名推导 domain ──────────────────────────
+    if domain is None:
+        derived_domain, derived_scene = _derive_domain_from_scene(scene)
+        domain = derived_domain
+        scene = derived_scene  # 例如 ops_deploy → 清洗为 deploy
+
     # 构建引擎
     if scene_file:
         engine = RuleEngine(Path(scene_file))
@@ -109,12 +159,48 @@ def detect(
 
 
 @cli.command()
-@click.option("--template", required=True, help="模板名")
-@click.option("--vars", default="{}", help="JSON 变量字典")
-def compile_cmd(template: str, vars: str) -> None:
+@click.option("--template", default=None, help="模板名 (未指定时由 --domain/--scene 推导)")
+@click.option("--domain", default=None, help="业务域: ops / dev / general (未提供时从场景名推导)")
+@click.option("--scene", default="", help="场景名")
+@click.option("--answers", multiple=True, help="key=value 形式, 例如 --answers lang=cn format=json")
+@click.option("--vars", default="{}", help="JSON 变量字典 (与 --answers 互斥, 提供则忽略 --answers)")
+def compile_cmd(
+    template: str | None,
+    domain: str | None,
+    scene: str,
+    answers: tuple[str, ...],
+    vars: str,
+) -> None:
     """编译模板并输出结果."""
+    # ── 从 scene 推导 domain ────────────────────────
+    if domain is None:
+        domain, scene = _derive_domain_from_scene(scene)
+
+    # ── 推导 template ──────────────────────────────
+    if template is None:
+        if domain and scene:
+            template = f"{domain}/{scene}"
+        elif domain:
+            template = domain
+        else:
+            click.echo("错误: 必须提供 --template 或 --domain/--scene", err=True)
+            sys.exit(1)
+
+    # ── 解析变量 ──────────────────────────────────
+    if vars != "{}":
+        variables = json.loads(vars)
+    elif answers:
+        variables = {}
+        for a in answers:
+            if "=" not in a:
+                click.echo(f"错误: --answers 格式错误 '{a}', 应为 key=value", err=True)
+                sys.exit(1)
+            k, v = a.split("=", 1)
+            variables[k] = v
+    else:
+        variables = {}
+
     compiler = TemplateCompiler()
-    variables = json.loads(vars)
     rendered, missing = compiler.render(template, variables)
     click.echo(f"Rendered:\n{rendered}")
     if missing:

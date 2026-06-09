@@ -43,6 +43,55 @@ def _i18n(rule_raw: dict, locale: str, field: str) -> str | list[str] | None:
 
 # ── Pattern 匹配 ───────────────────────────────────────
 
+def _is_cjk(s: str) -> bool:
+    """Check if string is composed entirely of CJK Unified Ideographs."""
+    return bool(s) and all('\u4e00' <= c <= '\u9fff' or '\u3400' <= c <= '\u4dbf' for c in s)
+
+
+def _is_short_cjk(pat: str) -> bool:
+    """Check if pattern is a short CJK keyword (≤2 CJK chars) that needs boundary-aware matching."""
+    cjk_count = sum(1 for c in pat if '\u4e00' <= c <= '\u9fff' or '\u3400' <= c <= '\u4dbf')
+    return cjk_count > 0 and cjk_count <= 2 and len(pat) == cjk_count
+
+
+def _match_short_cjk(pat: str, prompt: str) -> bool:
+    """Match a short CJK keyword with boundary awareness.
+
+    For 2-char CJK keywords, rejects matches where the keyword is a prefix
+    fragment of a longer CJK compound word formed by a dangerous suffix.
+
+    Dangerous suffixes (器/端/员/化/性) form semantically different compound
+    words when appended to 2-char bases:
+    - "服务" + "器" = "服务器" (server, NOT service)
+    - "监控" + "器" = "监控器" (monitor device, NOT monitoring)
+
+    Non-dangerous suffixes (了/太/满/新/扩 etc.) don't change the core meaning:
+    - "部署" + "了" = "部署了" (still about deployment)
+    - "磁盘" + "满" = "磁盘满" (still about disk)
+    """
+    import re
+    pat_len = len(pat)
+    cjk_pattern = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf]')
+    # Suffixes that form semantically different compound words
+    _dangerous_suffixes = frozenset({'器', '端', '员', '化', '性'})
+
+    start = 0
+    while True:
+        idx = prompt.find(pat, start)
+        if idx == -1:
+            break
+        # Check if followed by a dangerous suffix forming a different compound
+        char_after = prompt[idx + pat_len] if idx + pat_len < len(prompt) else ''
+        if char_after in _dangerous_suffixes:
+            # Keyword is prefix of a different compound word → skip this occurrence
+            start = idx + 1
+            continue
+        # Safe match
+        return True
+
+    return False
+
+
 def _pattern_match(rule_raw: dict, prompt: str) -> bool:
     """检查 prompt 是否匹配规则的 patterns 列表.
 
@@ -51,6 +100,9 @@ def _pattern_match(rule_raw: dict, prompt: str) -> bool:
     - 如果两者都没有 → 总是匹配 (向后兼容)
     - 如果 patterns 为空列表 → 总是匹配 (通配)
     - 否则: prompt 必须包含至少一个关键词
+    - 短 CJK 关键词 (≤2 字符, 如 "服务") 使用边界感知匹配,
+      避免子串误命中 (如 "服务" 不应匹配 "服务器")
+    - 英文关键词使用简单子串匹配 (已有 \\b 边界效果)
     - exclude_patterns: 匹配 patterns 但命中排除词 → 不触发
     """
     patterns: list[str] = rule_raw.get("patterns", [])
@@ -65,9 +117,18 @@ def _pattern_match(rule_raw: dict, prompt: str) -> bool:
     prompt_lower = prompt.lower()
     matched = False
     for pat in patterns:
-        if pat.lower() in prompt_lower:
-            matched = True
-            break
+        pat_lower = pat.lower()
+        if _is_short_cjk(pat):
+            # Short CJK: boundary-aware match (case-insensitive on the prompt side)
+            if _match_short_cjk(pat, prompt):
+                matched = True
+                break
+        else:
+            # Non-CJK or longer CJK: simple substring match
+            if pat_lower in prompt_lower:
+                matched = True
+                break
+
     if not matched:
         return False
 

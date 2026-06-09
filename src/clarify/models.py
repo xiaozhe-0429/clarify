@@ -150,15 +150,23 @@ class CompileRequest(BaseModel):
     """/v1/compile 请求体.
 
     PRD: answers 绑定优先级 answers > context > 默认值.
+    template_name 可选: 为空时由 API 根据 context.domain/scene 自动推导.
+    original: 用户原始指令, 回显用.
     """
 
-    template_name: str = Field(..., min_length=1)
+    template_name: str = Field(
+        default="", max_length=128,
+        description="模板名, 为空时从 context 自动推导",
+    )
     answers: dict[str, str] = Field(
         default_factory=dict,
         description="用户对澄清问题的回答",
     )
+    original: str | None = Field(
+        default=None, description="用户原始指令 (回显)",
+    )
     context: Optional[ClarifyContext] = Field(
-        default=None, description="可选的上下文快照, 作为变量 fallback"
+        default=None, description="可选的上下文快照, 作为变量 fallback",
     )
 
 
@@ -167,4 +175,7 @@ class CompileResponse(BaseModel):
 
     rendered: str = Field(..., description="渲染后的精确指令")
     missing_vars: list[str] = Field(default_factory=list)
+    original: str | None = Field(
+        default=None, description="回显原始指令",
+    )
     log_id: str = ""
