@@ -3,12 +3,12 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "clarify"
+name = "clarify-engine"
 version = "0.1.0"
 description = "Clarify v1 — 歧义检测与消解服务"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Clarify Team"}
 ]
@@ -35,6 +35,17 @@ clarify = "clarify.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+clarify = [
+  "rules/*.yaml",
+  "templates/*.j2",
+]
+
+[tool.setuptools.data-files]
+"share/clarify/scenarios" = [
+  "scenarios/*.yaml",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
